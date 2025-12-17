@@ -2,92 +2,112 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>YouTube Carousel - Sequenziale con Progress Bar</title>
+    <title>YouTube Carousel - Fix Rotazione</title>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: black; font-family: sans-serif; }
         #player { width: 100vw; height: 100vh; }
-        
-        /* Stile della barra di progressione */
-        #progress-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 5px;
-            background: rgba(255, 255, 255, 0.2);
-            z-index: 10;
-        }
-        #progress-bar {
-            width: 100%;
-            height: 100%;
-            background: #ff0000; /* Rosso YouTube */
-            transition: width 1s linear;
-        }
+        #progress-container { position: absolute; top: 0; left: 0; width: 100%; height: 6px; background: rgba(255, 255, 255, 0.1); z-index: 100; }
+        #progress-bar { width: 100%; height: 100%; background: #ff0000; transition: width 1s linear; }
+        #debug-info { position: absolute; bottom: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 5px; font-size: 12px; z-index: 100; pointer-events: none; }
     </style>
 </head>
 <body>
     <div id="progress-container"><div id="progress-bar"></div></div>
+    <div id="debug-info">Inizializzazione...</div>
     <div id="player"></div>
 
     <script>
-        const videoIds = ['R5i7aeV8SB8', '91PfFoqvuUk', '2RS-12YQVI4'];
+        // --- CONFIGURAZIONE ---
+        // ASSICURATI CHE QUESTI ID SIANO DIVERSI TRA LORO!
+        const videoIds = [
+            '91PfFoqvuUk', // Video 1
+            '2RS-12YQVI4', // Video 2
+            'R5i7aeV8SB8'  // Video 3
+        ];
+        const displayTimeSeconds = 180; // 3 minuti (180 secondi)
+        
         let player;
         let currentIndex = 0;
-        const intervalTime = 2 * 60 * 1000; // 3 minuti
-        let timeLeft = intervalTime;
+        let secondsRemaining = displayTimeSeconds;
 
-        // Carica API
+        // 1. Caricamento API
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
-        const firstScriptTag = document.getElementsByTagName('script')[0];
-        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        document.head.appendChild(tag);
 
         function onYouTubeIframeAPIReady() {
-            loadVideoByIndex(currentIndex);
-            startTimer();
+            console.log("API YouTube Caricata");
+            initPlayer();
         }
 
-        function loadVideoByIndex(index) {
-            const videoId = videoIds[index];
-            if (!player) {
-                player = new YT.Player('player', {
-                    videoId: videoId,
-                    playerVars: { 'autoplay': 1, 'mute': 1, 'controls': 0, 'rel': 0, 'origin': window.location.origin },
-                    events: { 'onReady': (e) => e.target.playVideo(), 'onError': nextVideo }
-                });
-            } else {
-                player.loadVideoById(videoId);
-            }
-            resetProgressBar();
+        function initPlayer() {
+            player = new YT.Player('player', {
+                videoId: videoIds[currentIndex],
+                playerVars: { 
+                    'autoplay': 1, 
+                    'mute': 1, 
+                    'controls': 0, 
+                    'rel': 0, 
+                    'modestbranding': 1,
+                    'origin': window.location.origin 
+                },
+                events: {
+                    'onReady': (event) => {
+                        event.target.playVideo();
+                        updateDebug();
+                        startGlobalTimer();
+                    },
+                    'onError': (e) => {
+                        console.error("Errore Video: " + e.data);
+                        nextVideo(); // Salta al prossimo se c'è un errore
+                    }
+                }
+            });
         }
 
-        function nextVideo() {
-            currentIndex = (currentIndex + 1) % videoIds.length;
-            timeLeft = intervalTime;
-            loadVideoByIndex(currentIndex);
-        }
-
-        // Gestione della barra e del tempo
-        function startTimer() {
+        function startGlobalTimer() {
+            // Timer che gira ogni secondo
             setInterval(() => {
-                timeLeft -= 1000;
-                updateProgressBar();
-                if (timeLeft <= 0) {
+                secondsRemaining--;
+                
+                // Aggiorna Barra
+                const percent = (secondsRemaining / displayTimeSeconds) * 100;
+                document.getElementById('progress-bar').style.width = percent + "%";
+                
+                updateDebug();
+
+                if (secondsRemaining <= 0) {
                     nextVideo();
                 }
             }, 1000);
         }
 
-        function updateProgressBar() {
-            const percent = (timeLeft / intervalTime) * 100;
-            document.getElementById('progress-bar').style.width = percent + "%";
+        function nextVideo() {
+            // Incrementa l'indice
+            currentIndex++;
+            if (currentIndex >= videoIds.length) {
+                currentIndex = 0; // Torna all'inizio
+            }
+            
+            console.log("Cambio video... Nuovo indice: " + currentIndex);
+            
+            // Carica il nuovo video
+            player.loadVideoById({
+                videoId: videoIds[currentIndex],
+                suggestedQuality: 'hd1080'
+            });
+
+            // Reset del tempo
+            secondsRemaining = displayTimeSeconds;
+            document.getElementById('progress-bar').style.width = "100%";
         }
 
-        function resetProgressBar() {
-            timeLeft = intervalTime;
-            document.getElementById('progress-bar').style.width = "100%";
+        function updateDebug() {
+            const info = `Video attuale: ${currentIndex + 1}/${videoIds.length} | Prossimo cambio in: ${secondsRemaining}s`;
+            document.getElementById('debug-info').innerText = info;
         }
     </script>
 </body>
-
 </html>
+
+    
