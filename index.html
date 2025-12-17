@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>YouTube Carousel - Sequenziale con Progress Bar</title>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: black; font-family: sans-serif; }
+        #player { width: 100vw; height: 100vh; }
+        
+        /* Stile della barra di progressione */
+        #progress-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            z-index: 10;
+        }
+        #progress-bar {
+            width: 100%;
+            height: 100%;
+            background: #ff0000; /* Rosso YouTube */
+            transition: width 1s linear;
+        }
+    </style>
+</head>
+<body>
+    <div id="progress-container"><div id="progress-bar"></div></div>
+    <div id="player"></div>
+
+    <script>
+        const videoIds = ['R5i7aeV8SB8', '91PfFoqvuUk', '2RS-12YQVI4'];
+        let player;
+        let currentIndex = 0;
+        const intervalTime = 3 * 60 * 1000; // 3 minuti
+        let timeLeft = intervalTime;
+
+        // Carica API
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function onYouTubeIframeAPIReady() {
+            loadVideoByIndex(currentIndex);
+            startTimer();
+        }
+
+        function loadVideoByIndex(index) {
+            const videoId = videoIds[index];
+            if (!player) {
+                player = new YT.Player('player', {
+                    videoId: videoId,
+                    playerVars: { 'autoplay': 1, 'mute': 1, 'controls': 0, 'rel': 0, 'origin': window.location.origin },
+                    events: { 'onReady': (e) => e.target.playVideo(), 'onError': nextVideo }
+                });
+            } else {
+                player.loadVideoById(videoId);
+            }
+            resetProgressBar();
+        }
+
+        function nextVideo() {
+            currentIndex = (currentIndex + 1) % videoIds.length;
+            timeLeft = intervalTime;
+            loadVideoByIndex(currentIndex);
+        }
+
+        // Gestione della barra e del tempo
+        function startTimer() {
+            setInterval(() => {
+                timeLeft -= 1000;
+                updateProgressBar();
+                if (timeLeft <= 0) {
+                    nextVideo();
+                }
+            }, 1000);
+        }
+
+        function updateProgressBar() {
+            const percent = (timeLeft / intervalTime) * 100;
+            document.getElementById('progress-bar').style.width = percent + "%";
+        }
+
+        function resetProgressBar() {
+            timeLeft = intervalTime;
+            document.getElementById('progress-bar').style.width = "100%";
+        }
+    </script>
+</body>
+</html>
