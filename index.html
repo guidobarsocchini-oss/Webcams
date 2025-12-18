@@ -2,31 +2,38 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>YouTube Carousel - Hidden Mouse</title>
+    <title>YouTube Carousel - No Banner Fix</title>
     <style>
         body, html { 
             margin: 0; padding: 0; height: 100%; overflow: hidden; background: black; 
-            /* Nasconde il cursore di default su tutta la pagina */
-            cursor: none; 
+            cursor: none; /* Nasconde il cursore ovunque */
         }
 
-        #player-container {
+        #main-container {
             position: relative;
             width: 100vw;
             height: 100vh;
+            background: black;
         }
 
-        #player { width: 100vw; height: 100vh; pointer-events: none; }
+        /* Il player viene forzato a ignorare QUALSIASI interazione */
+        #player { 
+            width: 100vw; 
+            height: 100vh; 
+            pointer-events: none !important; 
+            user-select: none;
+        }
 
-        /* Protezione extra per evitare che il mouse attivi i menu di YouTube */
-        #interaction-preventer {
+        /* Questo div è uno scudo totale sopra il player */
+        #shield {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 5;
-            background: transparent;
+            z-index: 9999;
+            background: rgba(0,0,0,0); /* Completamente trasparente ma presente */
+            cursor: none;
         }
         
         #title-mask {
@@ -36,7 +43,7 @@
             width: 100%;
             height: 140px;
             background: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
-            z-index: 10;
+            z-index: 10000;
             opacity: 0;
             transition: opacity 0.8s ease-in-out;
             pointer-events: none;
@@ -44,15 +51,15 @@
 
         #progress-container { 
             position: absolute; bottom: 0; left: 0; width: 100%; height: 6px; 
-            background: rgba(255, 255, 255, 0.1); z-index: 100;
+            background: rgba(255, 255, 255, 0.1); z-index: 10001;
         }
         #progress-bar { width: 100%; height: 100%; background: #ff0000; transition: width 1s linear; }
     </style>
 </head>
-<body onmousemove="resetMouseTimer()">
+<body>
 
-    <div id="player-container">
-        <div id="interaction-preventer"></div>
+    <div id="main-container">
+        <div id="shield"></div>
         <div id="title-mask"></div>
         <div id="player"></div>
     </div>
@@ -63,20 +70,10 @@
 
     <script>
         const myPlaylistId = 'PLhNnjrSmvk-NC1dFuMu1T4qonEkt9L1vP'; 
-        const changeEverySeconds = 120; 
+        const changeEverySeconds = 150; 
         
         let player;
         let secondsRemaining = changeEverySeconds;
-        let mouseTimer;
-
-        // Funzione per nascondere il mouse dopo 2 secondi di inattività
-        function resetMouseTimer() {
-            document.body.style.cursor = 'default';
-            clearTimeout(mouseTimer);
-            mouseTimer = setTimeout(() => {
-                document.body.style.cursor = 'none';
-            }, 2000);
-        }
 
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
@@ -95,6 +92,7 @@
                     loop: 1,
                     showinfo: 0,
                     disablekb: 1,
+                    fs: 0, // Disabilita il pulsante full screen di YT
                     origin: window.location.origin
                 },
                 events: {
@@ -140,6 +138,11 @@
                 mask.style.opacity = "0";
             }, 7000);
         }
+
+        // Forza il mouse a sparire anche se si muove fuori dalla finestra e rientra
+        document.addEventListener('mouseenter', () => {
+            document.body.style.cursor = 'none';
+        });
 
         setTimeout(function(){ location.reload(); }, 6 * 60 * 60 * 1000);
     </script>
