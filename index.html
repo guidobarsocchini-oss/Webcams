@@ -2,21 +2,22 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>YouTube Playlist Carousel - 150s</title>
+    <title>YouTube Carousel - Minimal Bottom Bar</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: black; font-family: sans-serif; }
-        #player { width: 100vw; height: 100vh; }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: black; }
+        #player { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
         
-        /* Barra di progressione superiore */
+        /* Contenitore barra sul bordo inferiore */
         #progress-container { 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
+            position: absolute;
+            bottom: 0;
+            left: 0;
             width: 100%; 
             height: 6px; 
-            background: rgba(255,255,255,0.1); 
-            z-index: 100; 
+            background: rgba(255, 255, 255, 0.1); 
+            z-index: 100;
         }
+        
         #progress-bar { 
             width: 100%; 
             height: 100%; 
@@ -26,18 +27,20 @@
     </style>
 </head>
 <body>
-    <div id="progress-container"><div id="progress-bar"></div></div>
     <div id="player"></div>
+
+    <div id="progress-container">
+        <div id="progress-bar"></div>
+    </div>
 
     <script>
         // --- CONFIGURAZIONE ---
-        const myPlaylistId = 'PLhNnjrSmvk-NC1dFuMu1T4qonEkt9L1vP'; // <--- Inserisci qui il tuo ID Playlist
-        const changeEverySeconds = 150; // <--- IMPOSTATO A 150 SECONDI
+        const myPlaylistId = 'PLhNnjrSmvk-NC1dFuMu1T4qonEkt9L1vP'; // <--- Inserisci il tuo ID Playlist
+        const changeEverySeconds = 120; 
         
         let player;
         let secondsRemaining = changeEverySeconds;
 
-        // Caricamento API YouTube
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         document.head.appendChild(tag);
@@ -52,10 +55,12 @@
                     controls: 0,
                     modestbranding: 1,
                     rel: 0,
+                    loop: 1,
                     origin: window.location.origin
                 },
                 events: {
                     'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
                     'onError': skipToNext
                 }
             });
@@ -66,11 +71,15 @@
             startTimer();
         }
 
+        function onPlayerStateChange(event) {
+            if (event.data === YT.PlayerState.ENDED) {
+                skipToNext();
+            }
+        }
+
         function startTimer() {
             setInterval(() => {
                 secondsRemaining--;
-                
-                // Aggiorna la barra rossa in tempo reale
                 const percent = (secondsRemaining / changeEverySeconds) * 100;
                 document.getElementById('progress-bar').style.width = percent + "%";
 
@@ -81,10 +90,13 @@
         }
 
         function skipToNext() {
-            player.nextVideo(); // Passa al prossimo video della playlist
+            player.nextVideo();
             secondsRemaining = changeEverySeconds;
             document.getElementById('progress-bar').style.width = "100%";
         }
+
+        // Refresh automatico ogni 6 ore
+        setTimeout(function(){ location.reload(); }, 6 * 60 * 60 * 1000);
     </script>
 </body>
 </html>
