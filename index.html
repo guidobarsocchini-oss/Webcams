@@ -2,29 +2,17 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>YouTube Carousel - Ultimate Version</title>
+    <title>YouTube Infinite Random - Raspberry Edition</title>
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: black; cursor: none; }
         #player { width: 100vw; height: 100vh; pointer-events: none !important; }
-        
-        /* Scudo trasparente per bloccare i banner di YouTube */
-        #shield { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            z-index: 9999; background: transparent; cursor: none; 
-        }
-        
-        /* Maschera sfumata per nascondere il titolo in alto a sinistra */
+        #shield { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; background: transparent; cursor: none; }
         #title-mask {
             position: absolute; top: 0; left: 0; width: 100%; height: 140px;
             background: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
             z-index: 10000; opacity: 0; transition: opacity 0.8s ease-in-out; pointer-events: none;
         }
-
-        /* Barra di progressione in basso */
-        #progress-container { 
-            position: absolute; bottom: 0; left: 0; width: 100%; height: 1px; 
-            background: rgba(255, 255, 255, 0.1); z-index: 10001; 
-        }
+        #progress-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 1px; background: rgba(255, 255, 255, 0.1); z-index: 10001; }
         #progress-bar { width: 100%; height: 100%; background: #ff0000; transition: width 1s linear; }
     </style>
 </head>
@@ -36,13 +24,12 @@
     <div id="progress-container"><div id="progress-bar"></div></div>
 
     <script>
-        // --- CONFIGURAZIONE ---
-        const myPlaylistId = 'PLhNnjrSmvk-NC1dFuMu1T4qonEkt9L1vP'; // <--- Inserisci qui l'ID della tua Playlist
+        const myPlaylistId = 'PLhNnjrSmvk-NC1dFuMu1T4qonEkt9L1vP'; 
         const changeEverySeconds = 150; 
         
         let player;
         let secondsRemaining = changeEverySeconds;
-        let availableIndices = []; // Qui salviamo i video ancora da mostrare
+        let availableIndices = []; 
 
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
@@ -51,16 +38,9 @@
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('player', {
                 playerVars: {
-                    listType: 'playlist',
-                    list: myPlaylistId,
-                    autoplay: 1,
-                    mute: 1,
-                    controls: 0,
-                    modestbranding: 1,
-                    rel: 0,
-                    loop: 1,
-                    disablekb: 1,
-                    origin: window.location.origin
+                    listType: 'playlist', list: myPlaylistId,
+                    autoplay: 1, mute: 1, controls: 0, modestbranding: 1, rel: 0, loop: 1,
+                    disablekb: 1, origin: window.location.origin
                 },
                 events: {
                     'onReady': onPlayerReady,
@@ -71,21 +51,13 @@
         }
 
         function onPlayerReady(event) {
-            // Crea l'elenco dei video disponibili basato sulla playlist
-            const playlist = player.getPlaylist();
-            if (playlist) {
-                for (let i = 0; i < playlist.length; i++) {
-                    availableIndices.push(i);
-                }
-            }
-            
+            refreshIndices();
             event.target.playVideo();
-            playNextSmart(); // Avvia subito il primo video casuale
+            playNextSmart(); 
             startTimer();
         }
 
         function onPlayerStateChange(event) {
-            // Se il video finisce da solo, passa al prossimo casuale
             if (event.data === YT.PlayerState.ENDED) {
                 playNextSmart();
             }
@@ -96,35 +68,30 @@
                 secondsRemaining--;
                 const percent = (secondsRemaining / changeEverySeconds) * 100;
                 document.getElementById('progress-bar').style.width = percent + "%";
-                
-                if (secondsRemaining <= 0) {
-                    playNextSmart();
-                }
+                if (secondsRemaining <= 0) playNextSmart();
             }, 1000);
+        }
+
+        function refreshIndices() {
+            const playlist = player.getPlaylist();
+            availableIndices = [];
+            if (playlist) {
+                for (let i = 0; i < playlist.length; i++) {
+                    availableIndices.push(i);
+                }
+            }
         }
 
         function playNextSmart() {
             const playlist = player.getPlaylist();
             if (!playlist) return;
+            if (availableIndices.length === 0) refreshIndices();
 
-            // Se abbiamo mostrato tutti i video, resettiamo la lista per un nuovo ciclo
-            if (availableIndices.length === 0) {
-                for (let i = 0; i < playlist.length; i++) {
-                    availableIndices.push(i);
-                }
-            }
-
-            // Scegli un video a caso tra quelli rimasti nel "mazzo"
             const randomIndexInArray = Math.floor(Math.random() * availableIndices.length);
             const videoIndexToPlay = availableIndices[randomIndexInArray];
-
-            // Rimuovi il video scelto dalla lista degli "ancora da vedere"
             availableIndices.splice(randomIndexInArray, 1);
 
-            // Esegui il cambio video
             player.playVideoAt(videoIndexToPlay);
-            
-            // Reset grafico e maschera
             secondsRemaining = changeEverySeconds;
             document.getElementById('progress-bar').style.width = "100%";
             showMaskTemporarily();
@@ -136,13 +103,14 @@
             setTimeout(() => { mask.style.opacity = "0"; }, 7000);
         }
 
-        // Refresh automatico ogni 6 ore per pulire la memoria
-        setTimeout(() => { location.reload(); }, 6 * 60 * 60 * 1000);
+        // --- IMPOSTAZIONE RASPBERRY + BRAVE ---
+        // Refresh ogni 2 ore per liberare la RAM del Raspberry Pi 4
+        setTimeout(() => { 
+            console.log("Mantenimento programmato: ricarica pagina...");
+            location.reload(); 
+        }, 2 * 60 * 60 * 1000);
 
-        // Protezione mouse se entra/esce dalla finestra
         document.addEventListener('mouseenter', () => { document.body.style.cursor = 'none'; });
     </script>
 </body>
-
 </html>
-
