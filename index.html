@@ -2,65 +2,118 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>YouTube Infinite Random - Raspberry Edition</title>
+    <title>YouTube Carousel Ultimate - Raspberry Pi 4</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: black; cursor: none; }
-        #player { width: 100vw; height: 100vh; pointer-events: none !important; }
-        #shield { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; background: transparent; cursor: none; }
+        /* Design Full Screen e rimozione cursore */
+        body, html { 
+            margin: 0; padding: 0; height: 100%; overflow: hidden; 
+            background: black; cursor: none; 
+        }
+
+        /* Player Video a tutto schermo */
+        #player-video { width: 100vw; height: 100vh; pointer-events: none !important; }
+        
+        /* Player audio nascosto fuori dallo schermo */
+        #player-audio { position: absolute; top: -9999px; left: -9999px; width: 1px; height: 1px; }
+
+        /* Scudo trasparente per bloccare i banner di interazione di YouTube */
+        #shield { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            z-index: 9999; background: transparent; cursor: none; 
+        }
+        
+        /* Maschera sfumata superiore per nascondere i titoli dei video */
         #title-mask {
             position: absolute; top: 0; left: 0; width: 100%; height: 140px;
             background: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
             z-index: 10000; opacity: 0; transition: opacity 0.8s ease-in-out; pointer-events: none;
         }
-        #progress-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 1px; background: rgba(255, 255, 255, 0.1); z-index: 10001; }
-        #progress-bar { width: 100%; height: 100%; background: #ff0000; transition: width 1s linear; }
+
+        /* Barra di progressione rossa sottile sul bordo inferiore */
+        #progress-container { 
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 1px; 
+            background: rgba(255, 255, 255, 0.1); z-index: 10001; 
+        }
+        #progress-bar { 
+            width: 100%; height: 100%; background: #ff0000; 
+            transition: width 1s linear; 
+        }
     </style>
 </head>
 <body>
 
     <div id="shield"></div>
     <div id="title-mask"></div>
-    <div id="player"></div>
+    
+    <div id="player-video"></div>
+    
+    <div id="player-audio"></div>
+
     <div id="progress-container"><div id="progress-bar"></div></div>
 
     <script>
-        const myPlaylistId = 'PLhNnjrSmvk-NC1dFuMu1T4qonEkt9L1vP'; 
-        const changeEverySeconds = 150; 
+        // --- CONFIGURAZIONE AUTOMATICA ---
+        const myPlaylistId = 'PLhNnjrSmvk-NC1dFuMu1T4qonEkt9L1vP'; // La tua playlist video
+        const audioVideoId = 'PO7FETKjmA4'; // Musica Chillout
+        const changeEverySeconds = 150; // Cambio ogni 2 minuti e mezzo
         
-        let player;
+        let videoPlayer, audioPlayer;
         let secondsRemaining = changeEverySeconds;
-        let availableIndices = []; 
+        let availableIndices = [];
 
+        // Caricamento API YouTube
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         document.head.appendChild(tag);
 
         function onYouTubeIframeAPIReady() {
-            player = new YT.Player('player', {
+            // Configurazione Player Video (Muto)
+            videoPlayer = new YT.Player('player-video', {
                 playerVars: {
-                    listType: 'playlist', list: myPlaylistId,
-                    autoplay: 1, mute: 1, controls: 0, modestbranding: 1, rel: 0, loop: 1,
-                    disablekb: 1, origin: window.location.origin
+                    listType: 'playlist', 
+                    list: myPlaylistId,
+                    autoplay: 1, 
+                    mute: 1, 
+                    controls: 0, 
+                    modestbranding: 1, 
+                    rel: 0, 
+                    disablekb: 1
                 },
                 events: {
-                    'onReady': onPlayerReady,
-                    'onStateChange': onPlayerStateChange,
+                    'onReady': onVideoReady,
+                    'onStateChange': onVideoStateChange,
                     'onError': playNextSmart
+                }
+            });
+
+            // Configurazione Player Audio (Nascosto)
+            audioPlayer = new YT.Player('player-audio', {
+                height: '1', width: '1',
+                videoId: audioVideoId,
+                playerVars: {
+                    autoplay: 1, 
+                    controls: 0, 
+                    loop: 1, 
+                    playlist: audioVideoId
+                },
+                events: {
+                    'onReady': (e) => { 
+                        e.target.setVolume(50); // Volume musica al 50%
+                        e.target.playVideo(); 
+                    }
                 }
             });
         }
 
-        function onPlayerReady(event) {
+        function onVideoReady(event) {
             refreshIndices();
-            event.target.playVideo();
             playNextSmart(); 
             startTimer();
         }
 
-        function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.ENDED) {
-                playNextSmart();
-            }
+        function onVideoStateChange(event) {
+            // Se il video finisce prima dei 150s, passa al prossimo
+            if (event.data === YT.PlayerState.ENDED) playNextSmart();
         }
 
         function startTimer() {
@@ -68,12 +121,15 @@
                 secondsRemaining--;
                 const percent = (secondsRemaining / changeEverySeconds) * 100;
                 document.getElementById('progress-bar').style.width = percent + "%";
-                if (secondsRemaining <= 0) playNextSmart();
+                
+                if (secondsRemaining <= 0) {
+                    playNextSmart();
+                }
             }, 1000);
         }
 
         function refreshIndices() {
-            const playlist = player.getPlaylist();
+            const playlist = videoPlayer.getPlaylist();
             availableIndices = [];
             if (playlist) {
                 for (let i = 0; i < playlist.length; i++) {
@@ -83,15 +139,21 @@
         }
 
         function playNextSmart() {
-            const playlist = player.getPlaylist();
+            const playlist = videoPlayer.getPlaylist();
             if (!playlist) return;
-            if (availableIndices.length === 0) refreshIndices();
+
+            // Se il mazzo è finito, rimescola e ricomincia
+            if (availableIndices.length === 0) {
+                refreshIndices();
+            }
 
             const randomIndexInArray = Math.floor(Math.random() * availableIndices.length);
             const videoIndexToPlay = availableIndices[randomIndexInArray];
             availableIndices.splice(randomIndexInArray, 1);
 
-            player.playVideoAt(videoIndexToPlay);
+            videoPlayer.playVideoAt(videoIndexToPlay);
+            
+            // Reset timer e maschera titolo
             secondsRemaining = changeEverySeconds;
             document.getElementById('progress-bar').style.width = "100%";
             showMaskTemporarily();
@@ -103,13 +165,10 @@
             setTimeout(() => { mask.style.opacity = "0"; }, 7000);
         }
 
-        // --- IMPOSTAZIONE RASPBERRY + BRAVE ---
-        // Refresh ogni 2 ore per liberare la RAM del Raspberry Pi 4
-        setTimeout(() => { 
-            console.log("Mantenimento programmato: ricarica pagina...");
-            location.reload(); 
-        }, 2 * 60 * 60 * 1000);
+        // OTTIMIZZAZIONE RASPBERRY: Reload ogni 2 ore per pulire la RAM
+        setTimeout(() => { location.reload(); }, 2 * 60 * 60 * 1000);
 
+        // Forza la scomparsa del mouse se viene mosso
         document.addEventListener('mouseenter', () => { document.body.style.cursor = 'none'; });
     </script>
 </body>
