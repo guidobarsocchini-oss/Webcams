@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>YouTube Carousel - Countdown Edition</title>
+    <title>YouTube Carousel - Max Quality Edition</title>
     <style>
         body, html { 
             margin: 0; padding: 0; height: 100%; overflow: hidden; 
@@ -19,17 +19,16 @@
             z-index: 10000; opacity: 0; transition: opacity 0.8s ease-in-out; pointer-events: none;
         }
 
-        /* Nuovo stile per il contatore in basso a destra */
         #timer-display {
             position: absolute;
             bottom: 20px;
             right: 30px;
-            color: rgba(255, 255, 255, 0.7); /* Bianco semi-trasparente */
+            color: rgba(255, 255, 255, 0.7);
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             font-size: 24px;
             font-weight: 300;
             z-index: 10001;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8); /* Ombra per leggerlo su video chiari */
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
             letter-spacing: 1px;
             pointer-events: none;
         }
@@ -60,9 +59,18 @@
 
         function onYouTubeIframeAPIReady() {
             videoPlayer = new YT.Player('player-video', {
+                height: '1080',
+                width: '1920',
                 playerVars: {
-                    listType: 'playlist', list: myPlaylistId,
-                    autoplay: 1, mute: 1, controls: 0, modestbranding: 1, rel: 0, disablekb: 1
+                    listType: 'playlist', 
+                    list: myPlaylistId,
+                    autoplay: 1, 
+                    mute: 1, 
+                    controls: 0, 
+                    modestbranding: 1, 
+                    rel: 0, 
+                    disablekb: 1,
+                    vq: 'hd1080' // Forza la richiesta HD ai server
                 },
                 events: {
                     'onReady': onVideoReady,
@@ -82,31 +90,34 @@
         }
 
         function onVideoReady(event) {
+            // Tentativo ulteriore di forzare la qualità
+            if (event.target.setPlaybackQuality) {
+                event.target.setPlaybackQuality('hd1080');
+            }
             refreshIndices();
             playNextSmart(); 
             startTimer();
         }
 
         function onVideoStateChange(event) {
+            // Ogni volta che cambia il video, ri-tentiamo di forzare l'HD
+            if (event.data === YT.PlayerState.PLAYING) {
+                if (event.target.setPlaybackQuality) {
+                    event.target.setPlaybackQuality('hd1080');
+                }
+            }
             if (event.data === YT.PlayerState.ENDED) playNextSmart();
         }
 
         function startTimer() {
             setInterval(() => {
                 secondsRemaining--;
-                
-                // Formatta il tempo in mm:ss
                 const mins = Math.floor(secondsRemaining / 60);
                 const secs = secondsRemaining % 60;
-                const formattedTime = 
-                    (mins < 10 ? "0" : "") + mins + ":" + 
-                    (secs < 10 ? "0" : "") + secs;
+                document.getElementById('timer-display').innerText = 
+                    (mins < 10 ? "0" : "") + mins + ":" + (secs < 10 ? "0" : "") + secs;
                 
-                document.getElementById('timer-display').innerText = formattedTime;
-                
-                if (secondsRemaining <= 0) {
-                    playNextSmart();
-                }
+                if (secondsRemaining <= 0) playNextSmart();
             }, 1000);
         }
 
@@ -121,7 +132,6 @@
         function playNextSmart() {
             const playlist = videoPlayer.getPlaylist();
             if (!playlist) return;
-
             if (availableIndices.length === 0) refreshIndices();
 
             const randomIndexInArray = Math.floor(Math.random() * availableIndices.length);
@@ -129,7 +139,6 @@
             availableIndices.splice(randomIndexInArray, 1);
 
             videoPlayer.playVideoAt(videoIndexToPlay);
-            
             secondsRemaining = changeEverySeconds;
             showMaskTemporarily();
         }
