@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <title>YouTube Carousel</title>
     <style>
+        *, *::before, *::after { cursor: none !important; }
         body, html { 
             margin: 0; padding: 0; height: 100%; overflow: hidden; 
             background: black; cursor: none; 
         }
- 
-        #player-video { width: 100vw; height: 100vh; pointer-events: none !important; }
+
+        #player-video { width: 100vw; height: 100vh; pointer-events: none !important; cursor: none !important; }
+        #player-video iframe { cursor: none !important; }
         #player-audio { position: absolute; top: -9999px; left: -9999px; width: 1px; height: 1px; }
         #shield { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; background: transparent; cursor: none; }
         
@@ -18,7 +20,7 @@
             background: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
             z-index: 10000; opacity: 0; transition: opacity 0.8s ease-in-out; pointer-events: none;
         }
- 
+
         #timer-display {
             position: absolute;
             bottom: 20px;
@@ -32,7 +34,7 @@
             letter-spacing: 1px;
             pointer-events: none;
         }
- 
+
         /* Overlay di errore - mostrato solo in caso di problemi */
         #error-overlay {
             display: none;
@@ -64,22 +66,22 @@
     </style>
 </head>
 <body>
- 
+
     <div id="shield"></div>
     <div id="title-mask"></div>
     
     <div id="player-video"></div>
     <div id="player-audio"></div>
- 
+
     <div id="timer-display">00:00</div>
- 
+
     <!-- Overlay mostrato solo se YouTube non parte affatto -->
     <div id="error-overlay">
         <span>⏳</span>
         <span id="error-msg">Caricamento in corso...</span>
         <div class="retry-bar"><div class="retry-fill" id="retry-fill"></div></div>
     </div>
- 
+
     <script>
         // ─── CONFIGURAZIONE ───────────────────────────────────────────────────
         const myPlaylistId      = 'PLhNnjrSmvk-NC1dFuMu1T4qonEkt9L1vP'; 
@@ -88,7 +90,7 @@
         const MAX_CONSECUTIVE_ERRORS = 5;   // dopo N errori di fila → skip forzato
         const RETRY_DELAY_MS         = 8000; // attesa prima di riprovare dopo errore grave
         // ─────────────────────────────────────────────────────────────────────
- 
+
         let videoPlayer, audioPlayer;
         let secondsRemaining   = changeEverySeconds;
         let availableIndices   = [];
@@ -96,12 +98,12 @@
         let timerInterval      = null;
         let playerReady        = false;
         let audioReady         = false;
- 
+
         // ── Carica API YouTube ────────────────────────────────────────────────
         const tag = document.createElement('script');
         tag.src   = "https://www.youtube.com/iframe_api";
         document.head.appendChild(tag);
- 
+
         function onYouTubeIframeAPIReady() {
             videoPlayer = new YT.Player('player-video', {
                 height: '1080',
@@ -125,7 +127,7 @@
                     'onError':       onVideoError
                 }
             });
- 
+
             audioPlayer = new YT.Player('player-audio', {
                 height:  '1',
                 width:   '1',
@@ -143,7 +145,7 @@
                 }
             });
         }
- 
+
         // ── Gestione player video ─────────────────────────────────────────────
         function onVideoReady(event) {
             playerReady = true;
@@ -153,7 +155,7 @@
             playNextSmart(); 
             startTimer();
         }
- 
+
         function onVideoStateChange(event) {
             if (event.data === YT.PlayerState.PLAYING) {
                 consecutiveErrors = 0;   // reset contatore errori
@@ -175,7 +177,7 @@
                 }, 15000); // 15 secondi di buffering → skip
             }
         }
- 
+
         function onVideoError(event) {
             // Codici errore YouTube:
             // 2  → parametro non valido
@@ -184,31 +186,31 @@
             // 101/150 → embedding non permesso
             console.warn('Errore player video, codice:', event.data);
             consecutiveErrors++;
- 
+
             if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
                 // Troppi errori di fila: aspetta un po' e ricarica la pagina
                 showErrorOverlay('Troppi errori consecutivi, riavvio tra poco...', RETRY_DELAY_MS);
                 setTimeout(() => location.reload(), RETRY_DELAY_MS);
                 return;
             }
- 
+
             // Altrimenti salta al prossimo video
             setTimeout(playNextSmart, 1500);
         }
- 
+
         // ── Gestione player audio ─────────────────────────────────────────────
         function onAudioReady(event) {
             audioReady = true;
             event.target.setVolume(50);
             event.target.playVideo();
         }
- 
+
         function onAudioError(event) {
             // Il video audio non è disponibile: silenzio, ma il carosello continua
             console.warn('Player audio non disponibile (codice:', event.data, ') - procedo senza audio.');
             audioReady = false;
         }
- 
+
         // ── Timer countdown ───────────────────────────────────────────────────
         function startTimer() {
             if (timerInterval) clearInterval(timerInterval);
@@ -218,14 +220,14 @@
                 if (secondsRemaining <= 0) playNextSmart();
             }, 1000);
         }
- 
+
         function updateTimerDisplay() {
             const mins = Math.floor(Math.abs(secondsRemaining) / 60);
             const secs = Math.abs(secondsRemaining) % 60;
             document.getElementById('timer-display').innerText = 
                 (mins < 10 ? "0" : "") + mins + ":" + (secs < 10 ? "0" : "") + secs;
         }
- 
+
         // ── Logica playlist ───────────────────────────────────────────────────
         function refreshIndices() {
             try {
@@ -238,18 +240,18 @@
                 console.warn('Impossibile leggere la playlist:', e);
             }
         }
- 
+
         function playNextSmart() {
             clearTimeout(window._bufferTimeout);
             try {
                 const playlist = videoPlayer.getPlaylist();
                 if (!playlist || playlist.length === 0) return;
                 if (availableIndices.length === 0) refreshIndices();
- 
+
                 const randomIndexInArray = Math.floor(Math.random() * availableIndices.length);
                 const videoIndexToPlay   = availableIndices[randomIndexInArray];
                 availableIndices.splice(randomIndexInArray, 1);
- 
+
                 videoPlayer.playVideoAt(videoIndexToPlay);
                 secondsRemaining = changeEverySeconds;
                 showMaskTemporarily();
@@ -257,7 +259,7 @@
                 console.error('Errore in playNextSmart:', e);
             }
         }
- 
+
         // ── Utilità ───────────────────────────────────────────────────────────
         function forceHD(player) {
             try {
@@ -266,18 +268,18 @@
                 }
             } catch(e) {}
         }
- 
+
         function showMaskTemporarily() {
             const mask = document.getElementById('title-mask');
             mask.style.opacity = "1";
             setTimeout(() => { mask.style.opacity = "0"; }, 7000);
         }
- 
+
         function showErrorOverlay(msg, durationMs) {
             const overlay = document.getElementById('error-overlay');
             document.getElementById('error-msg').innerText = msg || 'Errore di caricamento...';
             overlay.classList.add('visible');
- 
+
             // Barra di avanzamento animata
             const fill = document.getElementById('retry-fill');
             fill.style.transition = 'none';
@@ -287,15 +289,23 @@
                 fill.style.width = '100%';
             });
         }
- 
+
         function hideErrorOverlay() {
             document.getElementById('error-overlay').classList.remove('visible');
         }
- 
+
         // ── Auto-riavvio ogni 4 ore (evita memory leak su Raspberry) ─────────
         setTimeout(() => { location.reload(); }, 4 * 60 * 60 * 1000);
- 
-        document.addEventListener('mouseenter', () => { document.body.style.cursor = 'none'; });
+
+        // ── Nasconde il cursore ovunque, subito e dopo ogni movimento ─────────
+        // Lo #shield copre l'iframe e intercetta tutti gli eventi del mouse
+        function hideCursor() {
+            document.documentElement.style.setProperty('cursor', 'none', 'important');
+            document.body.style.setProperty('cursor', 'none', 'important');
+        }
+        document.addEventListener('mousemove', hideCursor);
+        document.addEventListener('mouseenter', hideCursor);
+        hideCursor();
     </script>
 </body>
 </html>
